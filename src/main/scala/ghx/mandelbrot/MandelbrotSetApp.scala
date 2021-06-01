@@ -7,7 +7,7 @@ import javafx.scene.layout.AnchorPane
 import javafx.stage.Stage
 //import kamon.Kamon
 
-class WApp extends Application {
+class MandelbrotSetApp extends Application {
 
   override def start(stage: Stage): Unit = {
     val root: AnchorPane = FXMLLoader.load(getClass.getResource("MandelbrotPanel.fxml"))
@@ -17,10 +17,17 @@ class WApp extends Application {
     stage.show()
   }
 
+
+  def __launch(args: Array[String]) = {
+    Application.launch(args: _*)
+  }
 }
 
-object WApp extends App {
+object MandelbrotSetApp extends App {
+  var stage: Stage = null
 //  Kamon.loadModules()
   InfluxInstantReporter.init()
-  Application.launch(classOf[WApp], args: _*)
+//  Application.launch(classOf[MandelbrotSetApp], args: _*)
+
+  new MandelbrotSetApp().__launch(args: Array[String])
 }

@@ -32,7 +32,7 @@ object InfluxInstantReporter {
 }
 
 trait Timer {
-  def storeAndReport(tags: Map[String, String], fields: Map[String, Double])
+  def storeAndReport(tags: Map[String, String], fields: Map[String, Double]): Unit
 }
 
 object DummyTimer extends Timer {

@@ -9,15 +9,15 @@ import javafx.scene.canvas.Canvas
 import javafx.scene.control.{ProgressIndicator, Slider, TextField, Toggle, ToggleGroup}
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
+import scala.collection.parallel.CollectionConverters._
 //import kamon.Kamon
-import scalafx.scene.control.RadioButton
 
 import scala.collection.immutable
 
 class MandelbrotPanel {
 
   @FXML
-  var canvas: ResizableCanvas = _
+  var canvas: Canvas = _
   @FXML
   var xField: TextField = _
   @FXML
@@ -158,7 +158,7 @@ class MandelbrotPanel {
       val dw = canvas.getWidth / 2
       val dh = canvas.getHeight / 2
       val timer = InfluxInstantReporter.startTimer("calculations")
-      val matchingPoints = points.toParArray.map { p =>
+      val matchingPoints = points.par.map { p =>
         val (x0, y0) = p
         val (x, y) = Mandelbrot.canvasToPosition((x0, y0), (dw, dh), (_tx, _ty), axisRatio)
         val m = Mandelbrot.calculateIterations(i, c)((x, y))
@@ -210,7 +210,7 @@ class MandelbrotPanel {
       val dh = canvas.getHeight / 2
 //      println(s"Translating by (-$dw, -$dh), scaling by $axisRatio")
       var max = 0.0
-      val matchingPoints = points.toParArray.map { p =>
+      val matchingPoints = points.par.map { p =>
         val (x0, y0) = p
         val (x, y) = Mandelbrot.translate(((x0 - dw) * axisRatio, (y0 - dh) * axisRatio), (_tx, _ty))
         val m = Mandelbrot.calculateValues(i, c)((x, y)).module

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import ghx.mandelbrot.ResizableCanvas?>
+<!--<?import ghx.mandelbrot.ResizableCanvas?>-->
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressIndicator?>
@@ -15,6 +15,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.canvas.Canvas?>
 <AnchorPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="ghx.mandelbrot.MandelbrotPanel">
     <children>
@@ -23,7 +24,8 @@
             <center>
                 <VBox fx:id="canvasContainer" maxHeight="Infinity" maxWidth="Infinity" minHeight="30.0" minWidth="30.0"
                       prefHeight="600.0" prefWidth="600.0">
-                    <ResizableCanvas fx:id="canvas" height="${canvasContainer.height}" width="${canvasContainer.width}"/>
+<!--                    <ResizableCanvas fx:id="canvas" height="${canvasContainer.height}" width="${canvasContainer.width}"/>-->
+                    <Canvas fx:id="canvas" height="${canvasContainer.height}" width="${canvasContainer.width}"/>
                 </VBox>
             </center>
             <right>
