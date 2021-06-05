@@ -1,7 +1,9 @@
 package ghx.mandelbrot
 
-import java.util.concurrent.{CountDownLatch, Executors}
+import ghx.mandelbrot.numbers.MutableComplex
+import ghx.mandelbrot.ui.MandelbrotSettings
 
+import java.util.concurrent.{CountDownLatch, Executors}
 import scala.concurrent.{ExecutionContext, Future}
 
 object Mandelbrot {
@@ -9,11 +11,11 @@ object Mandelbrot {
   type T = Double
 
   def calculateByComparison(iterations: Int, compValue: T)(p: (T, T)): Boolean = {
-    val z0 = new Complex(0, 0)
-    var z = new Complex(0, 0)
+    val z0 = new MutableComplex(0, 0)
+    var z = new MutableComplex(0, 0)
     var i = 0
     val c = p.asComplex
-    val complex = new Complex(compValue, compValue).module
+    val complex = new MutableComplex(compValue, compValue).module
     while (i < iterations && z.module <= complex) {
       z = z.sq + c
       i = i + 1
@@ -28,12 +30,12 @@ object Mandelbrot {
     !r
   }
 
-  def calculateValues(iterations: Int, compValue: T)(p: (T, T)): Complex = {
-    val z0 = new Complex(0, 0)
-    var z = new Complex(0, 0)
+  def calculateValues(iterations: Int, compValue: T)(p: (T, T)): MutableComplex = {
+    val z0 = new MutableComplex(0, 0)
+    var z = new MutableComplex(0, 0)
     var i = 0
     val c = p.asComplex
-    val complex = new Complex(compValue, compValue).module
+    val complex = new MutableComplex(compValue, compValue).module
 //    while (i < iterations && (!c.r.isInfinite && !c.i.isInfinite)) {
     while (i < iterations) {
       z = z.sq + c
@@ -63,7 +65,7 @@ object Mandelbrot {
     )
 
   implicit class TupleToComplex(p: (T, T)) {
-    def asComplex = new Complex(p._1, p._2)
+    def asComplex = new MutableComplex(p._1, p._2)
   }
 
   val threads = 16

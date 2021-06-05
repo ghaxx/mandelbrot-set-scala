@@ -1,4 +1,4 @@
-package ghx.mandelbrot
+package ghx.mandelbrot.ui.monitoring
 
 import com.typesafe.config.ConfigFactory
 import org.influxdb.dto.Point

@@ -1,14 +1,18 @@
-package ghx.mandelbrot
+package ghx.mandelbrot.ui
 
-import ghx.mandelbrot.{Mandelbrot, MandelbrotSettings}
+import ghx.mandelbrot.Mandelbrot
+import ghx.mandelbrot.ui.painter.verbose.CanvasPointsPainter
 import javafx.beans.Observable
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.{ChangeListener, ObservableValue}
 import javafx.fxml.FXML
 import javafx.scene.canvas.Canvas
-import javafx.scene.control.{ProgressIndicator, Slider, TextField, Toggle, ToggleGroup}
-import javafx.scene.layout.VBox
+import javafx.scene.control._
 import javafx.scene.paint.Color
+import kamon.Kamon
+import kamon.tag.TagSet
+
+import java.util.concurrent.TimeUnit
 import scala.collection.parallel.CollectionConverters._
 //import kamon.Kamon
 
@@ -48,9 +52,10 @@ class MandelbrotPanel {
   var mode: ToggleGroup = _
 
   val xProp = new SimpleDoubleProperty(10)
-  var points: immutable.Seq[(Int, Int)] = _
 
   var draw: () => Any = drawWithParArray
+
+  var painter: CanvasPointsPainter = _
 
   def initialize() = {
     colorScaleSlider.valueProperty.setValue(1000)
@@ -119,61 +124,47 @@ class MandelbrotPanel {
         t1.getUserData match {
           case "parArray" => draw = drawWithParArray
           case "threads" => draw = drawWithExecutionPool
+          case "singleThread" => draw = drawSingleThread
         }
         draw()
       }
     })
 
+    painter = new CanvasPointsPainter(canvas, MandelbrotSettings)
+
     def f = {
-//      println("f")
-      remapPoints()
-      draw()
+      painter.mapPoints()
     }
     canvas.widthProperty().addListener((evt: Observable) => f)
     canvas.heightProperty.addListener((evt: Observable) => f)
+    val s = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+    s.scheduleAtFixedRate(() => {
+      javafx.application.Platform.runLater {
+        () => draw()
+      }
+    }, 0, 1000, TimeUnit.MILLISECONDS)
   }
 
   val black = new Color(0, 0, 0, 1)
 
-  def remapPoints() = {
-    Mandelbrot.p = Array.ofDim[((Int, Int), Int)](canvas.getWidth.intValue() * canvas.getHeight.intValue())
-    points =
-      for {
-        x <- 0 to canvas.getWidth.intValue()
-        y <- 0 to canvas.getHeight.intValue()
-      } yield {
-        (x, y)
-      }
+
+  def drawSingleThread(): Any = {
+    println("draw1")
+    progress.setVisible(true)
+    javafx.application.Platform.runLater(() => {
+//      painter.drawOnCanvas()
+      progress.setVisible(false)
+    })
   }
 
   def drawWithParArray(): Any = {
-//    println("draw1")
     progress.setVisible(true)
     javafx.application.Platform.runLater(() => {
-      val i = MandelbrotSettings.iterations.get().toInt
-      val c = MandelbrotSettings.compValue.get()
-      val _tx = MandelbrotSettings.x.get()
-      val _ty = MandelbrotSettings.y.get()
-      val axisRatio = MandelbrotSettings.scale.get() / canvas.getWidth
-      val dw = canvas.getWidth / 2
-      val dh = canvas.getHeight / 2
-      val timer = InfluxInstantReporter.startTimer("calculations")
-      val matchingPoints = points.par.map { p =>
-        val (x0, y0) = p
-        val (x, y) = Mandelbrot.canvasToPosition((x0, y0), (dw, dh), (_tx, _ty), axisRatio)
-        val m = Mandelbrot.calculateIterations(i, c)((x, y))
-        ((x0, y0), m)
-      }.toArray
-//      println(s"Calculations took ${System.currentTimeMillis() - startTime}")
-      timer.storeAndReport(Map("engine" -> "parallel-array"), Map("iterations" -> i, "comparison" -> c, "canvas-height" -> dh, "canvas-width" -> dw))
-      matchingPoints.foreach {
-        case ((x0, y0), m) =>
-          //        canvas.getGraphicsContext2D.strokeRect(x0, y0, 1, 1)
-          val color = new Color(1.0 * m / i, 1.0 * m / i, 1.0 * m / i, 1)
-          canvas.getGraphicsContext2D.getPixelWriter.setColor(x0, y0, color)
-      }
-//      Kamon.counter("created-sets").withTag("engine", "parallel array").increment()
-
+//      painter.getCalculatedColors().foreach {
+//        case ((x, y), color) =>
+//          canvas.getGraphicsContext2D.getPixelWriter.setColor(x, y, color)
+//      }
+      painter.drawOnCanvas(canvas.getGraphicsContext2D.getPixelWriter)
       progress.setVisible(false)
     })
   }
@@ -183,14 +174,25 @@ class MandelbrotPanel {
     progress.setVisible(true)
     javafx.application.Platform.runLater(() => {
       val i = MandelbrotSettings.iterations.get().toInt
-      val timer = InfluxInstantReporter.startTimer("calculations")
+//      val timer = InfluxInstantReporter.startTimer("calculations")
+      val timer = Kamon.timer("calculation-time").withoutTags().start()
+
       Mandelbrot.calculateParalelly(canvas.getWidth.intValue(), canvas.getHeight.intValue()).foreach {
         case ((x0, y0), m) =>
           //        canvas.getGraphicsContext2D.strokeRect(x0, y0, 1, 1)
           val color = new Color(1.0 * m / i, 1.0 * m / i, 1.0 * m / i, 1)
           canvas.getGraphicsContext2D.getPixelWriter.setColor(x0, y0, color)
       }
-//      timer.storeAndReport(Map("engine" -> "parallel-array"), Map("iterations" -> i, "comparison" -> c, "canvas-height" -> dh, "canvas-width" -> dw))
+      timer
+        .withTags(TagSet.from(Map(
+          "engine" -> "threads",
+          "iterations" -> i.longValue(),
+          "comparison" -> comparisonField.textProperty().get(),
+          "canvas-height" -> canvas.getHeight.longValue(),
+          "canvas-width" -> canvas.getWidth.longValue()))
+        ).stop()
+
+      //      timer.storeAndReport(Map("engine" -> "parallel-array"), Map("iterations" -> i, "comparison" -> c, "canvas-height" -> dh, "canvas-width" -> dw))
 //      Kamon.counter("created-sets").withTag("engine", "execution pool").increment()
 
       progress.setVisible(false)
@@ -198,34 +200,34 @@ class MandelbrotPanel {
   }
 
   def draw2() = {
-    progress.setVisible(true)
-    javafx.application.Platform.runLater(() => {
-      val i = MandelbrotSettings.iterations.get().toInt
-      val c = MandelbrotSettings.compValue.get()
-      val _tx = MandelbrotSettings.x.get()
-      val _ty = MandelbrotSettings.y.get()
-      val s = MandelbrotSettings.scale.get().floatValue()
-      val axisRatio = MandelbrotSettings.scale.get() / canvas.getWidth
-      val dw = canvas.getWidth / 2
-      val dh = canvas.getHeight / 2
-//      println(s"Translating by (-$dw, -$dh), scaling by $axisRatio")
-      var max = 0.0
-      val matchingPoints = points.par.map { p =>
-        val (x0, y0) = p
-        val (x, y) = Mandelbrot.translate(((x0 - dw) * axisRatio, (y0 - dh) * axisRatio), (_tx, _ty))
-        val m = Mandelbrot.calculateValues(i, c)((x, y)).module
-        if (m > max) max = Math.min(m, c)
-        ((x0, y0), m)
-      }.toArray
-      matchingPoints.foreach {
-        case ((x0, y0), m) =>
-          //        canvas.getGraphicsContext2D.strokeRect(x0, y0, 1, 1)
-          val color = new Color(Math.min(1.0, 1.0 * m / max), Math.min(1.0, 1.0 * m / max), Math.min(1.0, 1.0 * m / max), 1)
-          canvas.getGraphicsContext2D.getPixelWriter.setColor(x0, y0, color)
-      }
-
-      progress.setVisible(false)
-    })
+//    progress.setVisible(true)
+//    javafx.application.Platform.runLater(() => {
+//      val i = MandelbrotSettings.iterations.get().toInt
+//      val c = MandelbrotSettings.compValue.get()
+//      val _tx = MandelbrotSettings.x.get()
+//      val _ty = MandelbrotSettings.y.get()
+//      val s = MandelbrotSettings.scale.get().floatValue()
+//      val axisRatio = MandelbrotSettings.scale.get() / canvas.getWidth
+//      val dw = canvas.getWidth / 2
+//      val dh = canvas.getHeight / 2
+////      println(s"Translating by (-$dw, -$dh), scaling by $axisRatio")
+//      var max = 0.0
+//      val matchingPoints = CanvasPointsPainter.points.par.map { p =>
+//        val (x0, y0) = p
+//        val (x, y) = Mandelbrot.translate(((x0 - dw) * axisRatio, (y0 - dh) * axisRatio), (_tx, _ty))
+//        val m = Mandelbrot.calculateValues(i, c)((x, y)).module
+//        if (m > max) max = Math.min(m, c)
+//        ((x0, y0), m)
+//      }.toArray
+//      matchingPoints.foreach {
+//        case ((x0, y0), m) =>
+//          //        canvas.getGraphicsContext2D.strokeRect(x0, y0, 1, 1)
+//          val color = new Color(Math.min(1.0, 1.0 * m / max), Math.min(1.0, 1.0 * m / max), Math.min(1.0, 1.0 * m / max), 1)
+//          canvas.getGraphicsContext2D.getPixelWriter.setColor(x0, y0, color)
+//      }
+//
+//      progress.setVisible(false)
+//    })
   }
 
   def clear() = {

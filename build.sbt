@@ -12,7 +12,9 @@ libraryDependencies ++= {
     "org.scalatest" %% "scalatest" % "3.2.9" % "test",
     "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.3",
     "com.typesafe" % "config" % "1.4.1",
-    "org.influxdb" % "influxdb-java" % "2.21"
+    "org.influxdb" % "influxdb-java" % "2.21",
+    "io.kamon" %% "kamon-bundle" % "2.1.20",
+    "io.kamon" %% "kamon-influxdb" % "2.1.20",
     //    "org.specs2"          %%  "specs2-core"     % "2.3.11" % "test"
   )
 }
@@ -27,7 +29,7 @@ lazy val osName = System.getProperty("os.name") match {
 // Add JavaFX dependencies
 lazy val javaFXModules = Seq("base", "controls", "fxml", "graphics", "media", "swing", "web")
 libraryDependencies ++= javaFXModules.map(m =>
-  "org.openjfx" % s"javafx-$m" % "16" classifier osName
+  "org.openjfx" % s"javafx-$m" % "11" classifier osName
 )
 
 javaOptions in run ++= Seq(

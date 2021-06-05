@@ -1,10 +1,12 @@
-package ghx.mandelbrot
+package ghx.mandelbrot.ui
 
+import ghx.mandelbrot.ui.monitoring.InfluxInstantReporter
 import javafx.application.Application
 import javafx.fxml.FXMLLoader
 import javafx.scene.Scene
 import javafx.scene.layout.AnchorPane
 import javafx.stage.Stage
+import kamon.Kamon
 //import kamon.Kamon
 
 class MandelbrotSetApp extends Application {
@@ -25,7 +27,7 @@ class MandelbrotSetApp extends Application {
 
 object MandelbrotSetApp extends App {
   var stage: Stage = null
-//  Kamon.loadModules()
+  Kamon.loadModules()
   InfluxInstantReporter.init()
 //  Application.launch(classOf[MandelbrotSetApp], args: _*)
 

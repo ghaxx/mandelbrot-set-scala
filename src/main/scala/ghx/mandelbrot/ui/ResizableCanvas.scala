@@ -1,8 +1,6 @@
-package ghx.mandelbrot
+package ghx.mandelbrot.ui
 
-import javafx.beans.Observable
-import javafx.scene.canvas.{Canvas, GraphicsContext}
-import javafx.scene.paint.Color
+import javafx.scene.canvas.Canvas
 
 class ResizableCanvas extends Canvas {
 //  widthProperty().addListener((evt: Observable) => draw())
