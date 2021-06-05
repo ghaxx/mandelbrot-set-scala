@@ -1,7 +1,7 @@
 package ghx.mandelbrot.ui
 
 import ghx.mandelbrot.Mandelbrot
-import ghx.mandelbrot.ui.painter.verbose.CanvasPointsPainter
+import ghx.mandelbrot.ui.painter.verbose.{CanvasPointsPainter, CanvasQuickerPointsPainter, Painter}
 import javafx.beans.Observable
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.{ChangeListener, ObservableValue}
@@ -55,7 +55,7 @@ class MandelbrotPanel {
 
   var draw: () => Any = drawWithParArray
 
-  var painter: CanvasPointsPainter = _
+  var painter: Painter = _
 
   def initialize() = {
     colorScaleSlider.valueProperty.setValue(1000)
@@ -130,13 +130,10 @@ class MandelbrotPanel {
       }
     })
 
-    painter = new CanvasPointsPainter(canvas, MandelbrotSettings)
+    painter = new CanvasQuickerPointsPainter(canvas, MandelbrotSettings)
 
-    def f = {
-      painter.mapPoints()
-    }
-    canvas.widthProperty().addListener((evt: Observable) => f)
-    canvas.heightProperty.addListener((evt: Observable) => f)
+    canvas.widthProperty().addListener((evt: Observable) => painter.remapPoints())
+    canvas.heightProperty.addListener((evt: Observable) => painter.remapPoints())
     val s = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
     s.scheduleAtFixedRate(() => {
       javafx.application.Platform.runLater {
@@ -159,14 +156,9 @@ class MandelbrotPanel {
 
   def drawWithParArray(): Any = {
     progress.setVisible(true)
-    javafx.application.Platform.runLater(() => {
-//      painter.getCalculatedColors().foreach {
-//        case ((x, y), color) =>
-//          canvas.getGraphicsContext2D.getPixelWriter.setColor(x, y, color)
-//      }
-      painter.drawOnCanvas(canvas.getGraphicsContext2D.getPixelWriter)
-      progress.setVisible(false)
-    })
+    painter.remapPoints()
+    painter.drawOnCanvas()
+    progress.setVisible(false)
   }
 
   def drawWithExecutionPool(): Any = {

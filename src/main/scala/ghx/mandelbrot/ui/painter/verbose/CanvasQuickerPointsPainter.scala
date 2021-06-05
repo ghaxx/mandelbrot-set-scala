@@ -9,14 +9,9 @@ import kamon.tag.TagSet
 
 import scala.collection.immutable
 
-class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.type) extends Painter {
-  case class PointOnCanvas(x: Int, y: Int)
-
-  case class TranslatedPointCoords(x: Double, y: Double)
-
-  var canvasToReal: Map[PointOnCanvas, TranslatedPointCoords] = _
-
-  var points: immutable.Seq[PointOnCanvas] = _
+class CanvasQuickerPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.type) extends Painter {
+  var points: immutable.Seq[(Int, Int)] = _
+  var canvasToReal: Seq[((Int, Int), (Double, Double))] = _
   var pointsOffset: (Int, Int) = _
 
   def remapPoints() = {
@@ -29,12 +24,12 @@ class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.t
         x <- 0 to w
         y <- 0 to h
       } yield {
-        PointOnCanvas(x, y)
+        (x, y)
       }
     val _tx = MandelbrotSettings.x.get()
     val _ty = MandelbrotSettings.y.get()
     val axisRatio = MandelbrotSettings.scale.get() / canvas.getWidth
-    canvasToReal = points.map(x => x -> rescalePoint(x, (_tx, _ty), axisRatio)).toMap
+    canvasToReal = points.map(x => x -> rescalePoint(x, (_tx, _ty), axisRatio))
   }
 
   def drawOnCanvas(): Unit = {
@@ -46,19 +41,19 @@ class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.t
     val c = MandelbrotSettings.compValue.get()
     val colors = canvasToReal.par.map {
       case (onCanvas, realPoint) =>
-        val m = Mandelbrot.calculateIterations(i, c)((realPoint.x, realPoint.y))
+        val m = Mandelbrot.calculateIterations(i, c)((realPoint._1, realPoint._2))
         //        canvas.getGraphicsContext2D.strokeRect(x0, y0, 1, 1)
         val color = new Color(1.0 * m / i, 1.0 * m / i, 1.0 * m / i, 1)
         onCanvas -> color
     }
     javafx.application.Platform.runLater(() => {
       colors.seq.foreach {
-        case (PointOnCanvas(x, y), color) =>
+        case ((x, y), color) =>
           canvas.getGraphicsContext2D.getPixelWriter.setColor(x, y, color)
       }
       timer
         .withTags(TagSet.from(Map(
-          "engine" -> "parallel-array-verbose",
+          "engine" -> "parallel-array-quicker",
           "iterations" -> i.longValue(),
           "comparison" -> c.longValue(),
           "canvas-height" -> canvas.heightProperty().intValue().longValue(),
@@ -67,10 +62,10 @@ class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.t
     })
   }
 
-  private def rescalePoint(pointOnCanvas: PointOnCanvas, translate: (Double, Double), scale: Double): TranslatedPointCoords = {
-    TranslatedPointCoords(
-      scale * (pointOnCanvas.x - pointsOffset._1) + translate._1,
-      scale * (pointOnCanvas.y - pointsOffset._2) + translate._2
+  private def rescalePoint(pointOnCanvas: (Int, Int), translate: (Double, Double), scale: Double): (Double, Double) = {
+    (
+      scale * (pointOnCanvas._1 - pointsOffset._1) + translate._1,
+      scale * (pointOnCanvas._2 - pointsOffset._2) + translate._2
     )
   }
 }
