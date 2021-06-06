@@ -2,12 +2,14 @@ package ghx.mandelbrot.ui.painter.verbose
 
 import ghx.mandelbrot.Mandelbrot
 import ghx.mandelbrot.ui.MandelbrotSettings
+import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.canvas.Canvas
 import javafx.scene.paint.Color
 import kamon.Kamon
 import kamon.tag.TagSet
 
 import scala.collection.immutable
+import scala.concurrent.Promise
 
 class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.type) extends Painter {
   case class PointOnCanvas(x: Int, y: Int)
@@ -37,7 +39,7 @@ class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.t
     canvasToReal = points.map(x => x -> rescalePoint(x, (_tx, _ty), axisRatio)).toMap
   }
 
-  def drawOnCanvas(): Unit = {
+  def drawOnCanvas(): SimpleObjectProperty[Unit] = {
     import scala.collection.parallel.CollectionConverters._
 
     val timer = Kamon.timer("calculation-time").withoutTags().start()
@@ -51,11 +53,13 @@ class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.t
         val color = new Color(1.0 * m / i, 1.0 * m / i, 1.0 * m / i, 1)
         onCanvas -> color
     }
+    val p = new SimpleObjectProperty[Unit]
     javafx.application.Platform.runLater(() => {
       colors.seq.foreach {
         case (PointOnCanvas(x, y), color) =>
           canvas.getGraphicsContext2D.getPixelWriter.setColor(x, y, color)
       }
+      p.setValue(())
       timer
         .withTags(TagSet.from(Map(
           "engine" -> "parallel-array-verbose",
@@ -65,6 +69,7 @@ class CanvasPointsPainter(val canvas: Canvas, val settings: MandelbrotSettings.t
           "canvas-width" -> canvas.widthProperty().intValue().longValue()))
         ).stop()
     })
+    p
   }
 
   private def rescalePoint(pointOnCanvas: PointOnCanvas, translate: (Double, Double), scale: Double): TranslatedPointCoords = {
